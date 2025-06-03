@@ -1,0 +1,93 @@
+<html>
+<body>
+<pre>
+<h1>µVision Build Log</h1>
+<h2>Tool Versions:</h2>
+IDE-Version: ¦ÌVision V5.21.1.0
+Copyright (C) 2016 ARM Ltd and ARM Germany GmbH. All rights reserved.
+License Information: g user, s, LIC=CZLZX-HSHR1-WF5I7-E0U7L-5RI7S-6HXY5
+ 
+Tool Versions:
+Toolchain:       MDK-ARM Plus  Version: 5.21a
+Toolchain Path:  C:\Farsight\Keil_v5\ARM\ARMCC\Bin
+C Compiler:      Armcc.exe V5.06 update 3 (build 300)
+Assembler:       Armasm.exe V5.06 update 3 (build 300)
+Linker/Locator:  ArmLink.exe V5.06 update 3 (build 300)
+Library Manager: ArmAr.exe V5.06 update 3 (build 300)
+Hex Converter:   FromElf.exe V5.06 update 3 (build 300)
+CPU DLL:         SARMCM3.DLL V5.21a
+Dialog DLL:      DCM.DLL V1.13.8.0
+Target DLL:      STLink\ST-LINKIII-KEIL_SWO.dll V2.0.18.0
+Dialog DLL:      TCM.DLL V1.14.14.0
+ 
+<h2>Project:</h2>
+C:\Users\Administrator\Desktop\code3\code\MDK-ARM\ADC.uvprojx
+Project File Date:  05/06/2024
+
+<h2>Output:</h2>
+*** Using Compiler 'V5.06 update 3 (build 300)', folder: 'C:\Farsight\Keil_v5\ARM\ARMCC\Bin'
+Rebuild target 'ADC Configuration'
+assembling startup_stm32f407xx.s...
+compiling gpio.c...
+compiling stm32f4xx_it.c...
+compiling adc.c...
+compiling stm32f4xx_hal_msp.c...
+compiling main.c...
+..\Src\main.c(346): warning:  #940-D: missing return statement at end of non-void function "get_buffer"
+  }
+..\Src\main.c(371): warning:  #940-D: missing return statement at end of non-void function "get_now_light"
+  }
+..\Src\main.c(397): warning:  #940-D: missing return statement at end of non-void function "get_now_gas"
+  }
+..\Src\main.c(422): warning:  #940-D: missing return statement at end of non-void function "get_now_alcohol"
+  }
+..\Src\main.c(447): warning:  #940-D: missing return statement at end of non-void function "get_now_flame"
+  }
+..\Src\main.c(698): warning:  #1035-D: single-precision operand implicitly converted to double-precision
+  			if ( get_now_gas() < 0.035 )
+..\Src\main.c(792): warning:  #870-D: invalid multibyte character sequence
+      printf("é…?ç²?ä¼?æ„?å™?: %1.7f\n", now_alcohol);
+..\Src\main.c(793): warning:  #870-D: invalid multibyte character sequence
+      printf("å…?æ•?ä¼?æ„?å™?: %1.7f\n", now_light);
+..\Src\main.c(794): warning:  #870-D: invalid multibyte character sequence
+      printf("æ°?ä½?ä¼?æ„?å™?: %1.7f\n", now_gas);
+..\Src\main.c(795): warning:  #870-D: invalid multibyte character sequence
+  		printf("ç?ç„?ä¼?æ„?å™?: %1.7f\n", now_flame);
+..\Src\main.c(882): warning:  #870-D: invalid multibyte character sequence
+  					printf("\n\ræŒ?é”?é”?å€? = %#x\r\n",Rx1_Buffer[0]);//æƒ?ä¸?å?å?é€?é”?å€?
+..\Src\main.c(873): warning:  #177-D: variable "initcnt" was declared but never referenced
+  		int initcnt = 0;
+..\Src\main.c: 12 warnings, 0 errors
+compiling zlg7290.c...
+compiling dma.c...
+compiling usart.c...
+compiling i2c.c...
+compiling RemoteInfrared.c...
+compiling stm32f4xx_hal_gpio.c...
+compiling system_stm32f4xx.c...
+compiling stm32f4xx_hal_pwr.c...
+compiling stm32f4xx_hal_adc.c...
+compiling stm32f4xx_hal_cortex.c...
+compiling stm32f4xx_hal.c...
+compiling stm32f4xx_hal_flash_ramfunc.c...
+compiling stm32f4xx_hal_rcc.c...
+compiling stm32f4xx_hal_dma.c...
+compiling stm32f4xx_hal_flash.c...
+compiling stm32f4xx_hal_uart.c...
+compiling stm32f4xx_hal_iwdg.c...
+compiling stm32f4xx_hal_i2c.c...
+compiling stm32f4xx_hal_flash_ex.c...
+compiling stm32f4xx_hal_adc_ex.c...
+linking...
+Program Size: Code=16700 RO-data=448 RW-data=84 ZI-data=1516  
+"ADC Configuration\ADC Configuration.axf" - 0 Error(s), 12 Warning(s).
+
+<h2>Collection of Component include folders:</h2>
+  C:\Users\Administrator\Desktop\code3\code\MDK-ARM\RTE
+  C:\Farsight\Keil_v5\ARM\PACK\Keil\STM32F4xx_DFP\2.7.0\Drivers\CMSIS\Device\ST\STM32F4xx\Include
+
+<h2>Collection of Component Files used:</h2>
+Build Time Elapsed:  00:00:04
+</pre>
+</body>
+</html>
