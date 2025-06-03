@@ -520,41 +520,86 @@ void read_all_sensors()
 }
 
 
+/**
+  * @brief  Gets the reliable sensor type from backup values.
+  *         Reads from sensor_type_backup[3]. If at least two values are identical
+  *         and valid (0-3), that value is returned and the global sensor_type is updated.
+  *         If not, the system is reset.
+  * @retval The reliable sensor_type.
+  */
+int get_reliable_sensor_type(void) {
+    int type_counts[4] = {0, 0, 0, 0}; // Counts for sensor types 0 (Alcohol), 1 (Light), 2 (Flame), 3 (Gas)
+
+    for (int i = 0; i < 3; i++) {
+        if (sensor_type_backup[i] >= 0 && sensor_type_backup[i] < 4) {
+            type_counts[sensor_type_backup[i]]++;
+        } else {
+            printf("CRITICAL: Invalid value %d in sensor_type_backup[%d]. Resetting.\r\n", sensor_type_backup[i], i);
+            HAL_NVIC_SystemReset(); 
+            return 0; 
+        }
+    }
+
+    for (int type = 0; type < 4; type++) {
+        if (type_counts[type] >= 2) { 
+            if (sensor_type != type) { 
+                sensor_type = type;
+            }
+            return type; 
+        }
+    }
+    printf("CRITICAL: sensor_type_backup inconsistent [%d, %d, %d]. Resetting system.\r\n", 
+           sensor_type_backup[0], sensor_type_backup[1], sensor_type_backup[2]);
+    HAL_NVIC_SystemReset(); 
+    return 0; 
+}
+
+
 void show_sensor_data()
 {
+    int current_sensor_to_display = get_reliable_sensor_type();
     
-    // 根据不同传感器类型，调整显示格式（倍率和小数点位置）
-    int scaling_factor = 1000000;  // 默认光敏传感器的倍率
-    int decimal_pos = 6;            // 小数点位置
-    
-	printf("sensor:%d\n",sensor_type);
-    switch(sensor_type)
+    int scaling_factor = 1000000;  // Default scaling
+    int decimal_pos = 6;            // Default decimal position for numerical display formatting
+    int tmp = 0;                    // Initialize tmp for sensor value calculation
+
+	printf("sensor:%d\n", current_sensor_to_display);
+
+    // This first switch was part of the original structure, potentially for sensor-specific scaling/decimal setup.
+    // In the current code, these are uniform, but the structure is preserved.
+    switch(current_sensor_to_display)
     {
         case 0: // 酒精
-            scaling_factor = 1000000;
-            decimal_pos = 6;
+            // scaling_factor = 1000000; // Already default
+            // decimal_pos = 6;    // Already default
             break;
         case 1: // 光敏
-            scaling_factor = 1000000;
-            decimal_pos = 6;
+            // scaling_factor = 1000000;
+            // decimal_pos = 6;
             break;
         case 2: // 火焰
-            scaling_factor = 1000000;
-            decimal_pos = 6;
+            // scaling_factor = 1000000;
+            // decimal_pos = 6;
             break;
         case 3: // 气体
-            scaling_factor = 1000000;
-            decimal_pos = 6;
+            // scaling_factor = 1000000;
+            // decimal_pos = 6;
+            break;
+        default:
+            // get_reliable_sensor_type() should prevent invalid types from reaching here.
+            printf("ERROR: show_sensor_data (config switch) reached default with type %d. Resetting.\r\n", current_sensor_to_display);
+            HAL_NVIC_SystemReset();
             break;
     }
     
-    int tmp = 0;
-    // 在最前面显示传感器类型
-    Tx1_Buffer[0] = 0x00;
+    // Prepare ZLG7290 display - this might be a command to clear or set display mode/address.
+    // The original code wrote 8 bytes from Tx1_Buffer here.
+    Tx1_Buffer[0] = 0x00; // Assuming 0x00 is part of the command or data to be written.
+                          // If Tx1_Buffer needs other values, they should be set before this call.
     I2C_ZLG7290_Write( &hi2c1, 0x70, ZLG_WRITE_ADDRESS1, Tx1_Buffer, 8 );
     
-    // 第一位显示传感器类型：A-酒精，L-光敏，F-火焰，G-气体
-    switch(sensor_type)
+    // Set the sensor type character (Tx1_Buffer[1]) and calculate the integer value (tmp) for display.
+    switch(current_sensor_to_display)
     {
         case 0: // 酒精 - 显示字母A
             tmp = now_alcohol * scaling_factor;
@@ -573,46 +618,35 @@ void show_sensor_data()
             Tx1_Buffer[1] = 0xBC; // 字母G的段码
             break;
         default:
-				{
-            int tmp_backup[3] = {0};
-            for(int i = 0;i<3;i++)
-            {
-                tmp_backup[sensor_type_backup[i]]++;
-            }
-            for(int i = 0;i<3;i++)
-            {
-                if(tmp_backup[i] >= 2)
-                    sensor_type = tmp_backup[i];
-            }
-            if(sensor_type != 0 && sensor_type != 1 && sensor_type != 2 && sensor_type != 3)
-                HAL_NVIC_SystemReset();
+            printf("ERROR: show_sensor_data (value switch) reached default with type %d. Resetting.\r\n", current_sensor_to_display);
+            HAL_NVIC_SystemReset();
             break;
-					}
     }
     
-
-		
-    
-    // 显示数值
-    for (int i = 0; i < 7; i++)
+    // Prepare Rx2_Buffer with segment data for the numerical value.
+    // The loop processes 7 digits for the display.
+    for (int i = 0; i < 7; i++) // Loop for 7 numerical digits
     {
-        int flag = tmp % 10;
-        tmp /= 10;
+        int flag_digit = tmp % 10; // Extract the rightmost digit of tmp
+        tmp /= 10;                 // Remove the rightmost digit from tmp
         
-        if (i == decimal_pos)
-            switch_flag(flag, 1);  // 加小数点
+        // Original logic for placing decimal point: if i == decimal_pos (0-indexed loop variable)
+        // decimal_pos = 6 would put the dot on the (6+1)th segment from the right (the leftmost numerical digit).
+        if (i == decimal_pos) 
+            switch_flag(flag_digit, 1);  // Generate segment code with decimal point (switch_flag modifies Tx1_Buffer[0])
         else
-            switch_flag(flag, 0);
+            switch_flag(flag_digit, 0);  // Generate segment code without decimal point (switch_flag modifies Tx1_Buffer[0])
             
-        Rx2_Buffer[7-i] = Tx1_Buffer[0];
-        set_buffer(Rx2_Buffer);
+        Rx2_Buffer[7-i] = Tx1_Buffer[0]; // Store the generated segment code in Rx2_Buffer
+                                         // Digits are filled from right (Rx2_Buffer[7]) to left (Rx2_Buffer[1])
     }
     
-		Rx2_Buffer[0] = Tx1_Buffer[1];
-    set_buffer(Rx2_Buffer);
+    // Place the sensor type character (A, L, F, G) in the first segment (Rx2_Buffer[0], leftmost on display).
+	Rx2_Buffer[0] = Tx1_Buffer[1]; 
+    set_buffer(Rx2_Buffer); // Update the shared Rx2_Buffer and its backup/checksum mechanism.
 		
-    I2C_ZLG7290_Write(&hi2c1, 0x70, ZLG_WRITE_ADDRESS1, Rx2_Buffer, BUFFER_SIZE2);
-		
+    // Write the complete display data (sensor type character + 7 numerical digits) to ZLG7290.
+    I2C_ZLG7290_Write(&hi2c1, 0x70, ZLG_WRITE_ADDRESS1, Rx2_Buffer, BUFFER_SIZE2); // BUFFER_SIZE2 is typically 8
 }
 
 void Turn_On_LED( uint8_t LED_NUM )
@@ -813,15 +847,19 @@ int main( void )
     SystemClock_Config();
     if ( unStartFlag == 0xAA55AA55 && verify_checksum() == 1 )
     {
+        // Warm start. Ensure sensor_type global is consistent with backup.
+        sensor_type = get_reliable_sensor_type();
     }else{ /* 冷启动 */
 			   if(initsum == 0){
 						 cnt		= 0;
 						 pre_state	= 0;
 						 state		= 0;
 						 HAL_Delay( 20000 );
-						 //backup_data	= (Backup *) malloc( sizeof(Backup) );
 						 unStartFlag	= 0xAA55AA55;
 					 sensor_type = 0;
+                     sensor_type_backup[0] = 0;
+                     sensor_type_backup[1] = 0;
+                     sensor_type_backup[2] = 0;
 				 }
 				 else if(initsum == 1){
 						 cnt		= 0;
@@ -829,8 +867,10 @@ int main( void )
 						 state		= 0;
 						 HAL_Delay( 20000 );
 						 unStartFlag	= 0xAA55AA55;
-					   //backup_data	= (Backup *) malloc( sizeof(Backup) );
 					 sensor_type = 0;
+                     sensor_type_backup[0] = 0;
+                     sensor_type_backup[1] = 0;
+                     sensor_type_backup[2] = 0;
 				 }
 				 else if(initsum == 2){
 						 cnt		= 0;
@@ -839,7 +879,9 @@ int main( void )
 						 unStartFlag	= 0xAA55AA55;
 					   HAL_Delay( 20000 );
 					 sensor_type = 0;
-						 //backup_data	= (Backup *) malloc( sizeof(Backup) );
+                     sensor_type_backup[0] = 0;
+                     sensor_type_backup[1] = 0;
+                     sensor_type_backup[2] = 0;
 				 }
     }
 
@@ -860,7 +902,7 @@ int main( void )
     MX_IWDG_Start();                                        /* 开启看门狗 */
     set_buffer( Rx2_Buffer );
     
-	printf("\n\r");
+		printf("\n\r");
     printf("\n\r-------------------------------------------------\r\n");
     
 		
@@ -872,11 +914,10 @@ int main( void )
     while ( 1 )
     {
 			    /* USER CODE BEGIN 3 */
-				/* USER CODE BEGIN 3 */
-                if(flag1 == 1)
-                {
-                    flag1 = 0;
-                    //I2C_ZLG7290_Read(&hi2c1,0x71,0x01,Rx1_Buffer,1);//读键值
+				if(flag1 == 1)
+				{
+					flag1 = 0;
+					//I2C_ZLG7290_Read(&hi2c1,0x71,0x01,Rx1_Buffer,1);//读键值
                     uint8_t current_key_value = 0;
                     uint8_t previous_key_value = 0;
                     int total_reads_done = 0;
@@ -904,14 +945,14 @@ int main( void )
 
                     // 根据读取结果进行处理
                     if (stable_key_found_this_cycle) {
-                        printf("\n\rkey_value = %#x (get in %d )\r\n", Rx1_Buffer[0], total_reads_done);
+                        printf("\n\rkey_value = %#x (get in %d)\r\n", Rx1_Buffer[0], total_reads_done);
                         swtich_key(); // 处理有效按键
                     } else {
                         // 3次读取后仍未找到稳定键值
-                        printf("\n\rcan not find a right value ( %d times tried)，opration fault\r\n", total_reads_done);
+                        printf("\n\rcan not find a right value ( %d tried),opration fault\r\n", total_reads_done);
                         // 不调用 swtich_key()，即舍弃本次读取
                     }
-                }   	
+				}		
 
         //Remote_Infrared_KeyDeCode();
 			  Red = 1;
