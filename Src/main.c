@@ -108,7 +108,7 @@ uint8_t		now_gas_check = 0;
 uint8_t		now_alcohol_check = 0;
 uint8_t		now_flame_check = 0;
 uint32_t	unStartFlag __attribute__( (section( "NO_INIT" ), zero_init) );
-// int sensor_type __attribute__( (section( "NO_INIT" ), zero_init) );
+int sensor_type __attribute__( (section( "NO_INIT" ), zero_init) );
 int sensor_type_backup[3] __attribute__( (section( "NO_INIT" ), zero_init) );
 
 int enBeep = 0;
@@ -170,35 +170,6 @@ void update_checksum_num(int num)
         temp ^= ckpt[i];
     }
     backup_data[num].checksum = temp;
-}
-
-void write_sensor_type(int sensor_type)
-{
-    if(sensor_type == 0||sensor_type == 1||sensor_type == 2||sensor_type == 3)
-    {
-        for(int i = 0;i<3;i++)
-        {
-            sensor_type_backup[i] = sensor_type;
-        }
-    }
-}
-
-int read_sensor_type()
-{
-    int sensor_type;
-    int tmp_backup[3] = {0};
-    for(int i = 0;i<3;i++)
-    {
-        tmp_backup[sensor_type_backup[i]]++;
-    }
-    for(int i = 0;i<3;i++)
-    {
-        if(tmp_backup[i] >= 2)
-            sensor_type = tmp_backup[i];
-    }
-    if(sensor_type != 0 && sensor_type != 1 && sensor_type != 2 && sensor_type != 3)
-        HAL_NVIC_SystemReset();
-    return sensor_type;
 }
 
 
@@ -551,13 +522,31 @@ void read_all_sensors()
 
 void show_sensor_data()
 {
-    int sensor_type = read_sensor_type();
     
     // 根据不同传感器类型，调整显示格式（倍率和小数点位置）
     int scaling_factor = 1000000;  // 默认光敏传感器的倍率
     int decimal_pos = 6;            // 小数点位置
     
 	printf("sensor:%d\n",sensor_type);
+    switch(sensor_type)
+    {
+        case 0: // 酒精
+            scaling_factor = 1000000;
+            decimal_pos = 6;
+            break;
+        case 1: // 光敏
+            scaling_factor = 1000000;
+            decimal_pos = 6;
+            break;
+        case 2: // 火焰
+            scaling_factor = 1000000;
+            decimal_pos = 6;
+            break;
+        case 3: // 气体
+            scaling_factor = 1000000;
+            decimal_pos = 6;
+            break;
+    }
     
     int tmp = 0;
     // 在最前面显示传感器类型
@@ -584,10 +573,21 @@ void show_sensor_data()
             Tx1_Buffer[1] = 0xBC; // 字母G的段码
             break;
         default:
-        {
-            HAL_NVIC_SystemReset();
+				{
+            int tmp_backup[3] = {0};
+            for(int i = 0;i<3;i++)
+            {
+                tmp_backup[sensor_type_backup[i]]++;
+            }
+            for(int i = 0;i<3;i++)
+            {
+                if(tmp_backup[i] >= 2)
+                    sensor_type = tmp_backup[i];
+            }
+            if(sensor_type != 0 && sensor_type != 1 && sensor_type != 2 && sensor_type != 3)
+                HAL_NVIC_SystemReset();
             break;
-		}
+					}
     }
     
 
@@ -821,7 +821,7 @@ int main( void )
 						 HAL_Delay( 20000 );
 						 //backup_data	= (Backup *) malloc( sizeof(Backup) );
 						 unStartFlag	= 0xAA55AA55;
-					 write_sensor_type(0);
+					 sensor_type = 0;
 				 }
 				 else if(initsum == 1){
 						 cnt		= 0;
@@ -830,7 +830,7 @@ int main( void )
 						 HAL_Delay( 20000 );
 						 unStartFlag	= 0xAA55AA55;
 					   //backup_data	= (Backup *) malloc( sizeof(Backup) );
-					 write_sensor_type(0);
+					 sensor_type = 0;
 				 }
 				 else if(initsum == 2){
 						 cnt		= 0;
@@ -838,7 +838,7 @@ int main( void )
 						 state		= 0;
 						 unStartFlag	= 0xAA55AA55;
 					   HAL_Delay( 20000 );
-					 write_sensor_type(0);
+					 sensor_type = 0;
 						 //backup_data	= (Backup *) malloc( sizeof(Backup) );
 				 }
     }
@@ -860,10 +860,7 @@ int main( void )
     MX_IWDG_Start();                                        /* 开启看门狗 */
     set_buffer( Rx2_Buffer );
     
-		printf("\n\r");
-    printf("\n\r-------------------------------------------------\r\n");
-    printf("\n\r 多传感器显示与按键切换系统\r\n");
-    printf("\n\r 按键1-4分别切换不同传感器的显示\r\n");
+	printf("\n\r");
     printf("\n\r-------------------------------------------------\r\n");
     
 		
@@ -875,14 +872,15 @@ int main( void )
     while ( 1 )
     {
 			    /* USER CODE BEGIN 3 */
-				if(flag1 == 1)
+				/* USER CODE BEGIN 3 */
+                if(flag1 == 1)
                 {
                     flag1 = 0;
                     //I2C_ZLG7290_Read(&hi2c1,0x71,0x01,Rx1_Buffer,1);//读键值
                     uint8_t current_key_value = 0;
                     uint8_t previous_key_value = 0;
                     int total_reads_done = 0;
-                    bool stable_key_found_this_cycle = false; // 标记本次读取周期是否找到了稳定键值
+                    int stable_key_found_this_cycle = 0; // 标记本次读取周期是否找到了稳定键值
 
                     // 第一次读取
                     I2C_ZLG7290_Read(&hi2c1, 0x71, 0x01, &current_key_value, 1);
@@ -898,7 +896,7 @@ int main( void )
 
                         if (current_key_value == previous_key_value) {
                             Rx1_Buffer[0] = current_key_value; // 确认稳定键值
-                            stable_key_found_this_cycle = true;
+                            stable_key_found_this_cycle = 1;
                         } else {
                             previous_key_value = current_key_value; // 更新前一个值，用于下一次比较
                         }
@@ -906,11 +904,11 @@ int main( void )
 
                     // 根据读取结果进行处理
                     if (stable_key_found_this_cycle) {
-                        printf("\n\r按键键值 = %#x (稳定于 %d 次读取)\r\n", Rx1_Buffer[0], total_reads_done);
+                        printf("\n\rkey_value = %#x (get in %d )\r\n", Rx1_Buffer[0], total_reads_done);
                         swtich_key(); // 处理有效按键
                     } else {
                         // 3次读取后仍未找到稳定键值
-                        printf("\n\r按键读取不稳定 (共 %d 次读取)，操作已舍弃\r\n", total_reads_done);
+                        printf("\n\rcan not find a right value ( %d times tried)，opration fault\r\n", total_reads_done);
                         // 不调用 swtich_key()，即舍弃本次读取
                     }
                 }   	
@@ -994,19 +992,35 @@ void swtich_key(void)
 	{
         case 0x1C:
 					flag = 1;
-					write_sensor_type(0);		
+					sensor_type = 0;
+                    for(int i = 0;i<3;i++)
+                    {
+                        sensor_type_backup[i] = 0;
+                    }		
           break;
         case 0x1B:	
 					flag = 2;
-				write_sensor_type(1);		
+				sensor_type = 1;	
+                for(int i = 0;i<3;i++)
+                {
+                    sensor_type_backup[i] = 1;
+                }		
           break;
         case 0x1A:	
 					flag = 3;
-				write_sensor_type(2);			
+				sensor_type = 2;
+                for(int i = 0;i<3;i++)
+                {
+                    sensor_type_backup[i] = 2;
+                }			
           break;
         case 0x14:
 					flag = 4;
-				write_sensor_type(3);			
+				sensor_type = 3;
+                for(int i = 0;i<3;i++)
+                {
+                    sensor_type_backup[i] = 3;
+                }			
           break;   
 				case 0x13:
 					flag = 5;
